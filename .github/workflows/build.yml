@@ -29,10 +29,25 @@ jobs:
         run: |
           FOUND=$(find . -name settings.gradle -not -path './.git/*' | head -n 1)
           if [ -z "$FOUND" ]; then
-            echo "settings.gradle not found. Repo contents:"
+            echo "settings.gradle not found"
             find . -not -path './.git/*' | head -50
             exit 1
           fi
           DIR=$(dirname "$FOUND")
           echo "Building in $DIR"
           echo "DIR=$DIR" >> $GITHUB_ENV
+          cd "$DIR"
+          gradle build --no-daemon
+          ls -la build/libs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: inventory-dancer
+          path: ${{ env.DIR }}/build/libs/*.jar
+          if-no-files-found: error
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create build-${{ github.run_number }} ${{ env.DIR }}/build/libs/*.jar --title "Inventory Dancer build ${{ github.run_number }}" --notes "Automatic build" --repo ${{ github.repository }}
